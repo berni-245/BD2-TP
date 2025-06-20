@@ -1,4 +1,5 @@
 import pandas as pd
+from pymongo import ReturnDocument
 from pymongo.database import Database
 from typing import Literal
 
@@ -38,6 +39,12 @@ def initialize_mongo_db(mongo_db: Database):
 
             providers_collection.insert_one(provider_doc)
 
+            providers_collection.create_index(
+                [("society_name", 1)],  
+                unique=True,
+                name="unique_society_name"
+            )
+
     if not collection_exists(mongo_db, "products"):
         products_collection = mongo_db["products"]
 
@@ -54,23 +61,30 @@ def initialize_mongo_db(mongo_db: Database):
 
             products_collection.insert_one(product_doc)
 
-    mongo_db["counters"].update_one(
-        {"_id": "products"},
-        {"$set": {"seq": int(products_df["id_producto"].max() + 1)  }},
-        upsert=True
-    )
+            products_collection.create_index(
+                [("brand", 1), ("description", 1)],
+                unique=True,
+                name="unique_brand_description"
+            )
 
-    mongo_db["counters"].update_one(
-        {"_id": "providers"},
-        {"$set": {"seq": int(providers_df["id_proveedor"].max() + 1)}},
-        upsert=True
-    )
+    if not collection_exists(mongo_db, "counters"):
+        mongo_db["counters"].update_one(
+            {"_id": "products"},
+            {"$set": {"seq": int(products_df["id_producto"].max() + 1) }},
+            upsert=True
+        )
+
+        mongo_db["counters"].update_one(
+            {"_id": "providers"},
+            {"$set": {"seq": int(providers_df["id_proveedor"].max() + 1)}},
+            upsert=True
+        )
 
 def get_next_sequence(mongo_db: Database, table_name: Literal['providers', 'products']):
     counter = mongo_db["counters"].find_one_and_update(
         {"_id": table_name},
         {"$inc": {"seq": 1}},
-        return_document=True,  
+        return_document=ReturnDocument.BEFORE,  # increment after getting what to return
         upsert=True 
     )
     return counter["seq"]
