@@ -1,10 +1,11 @@
 import pandas as pd
+from pymongo.database import Database
 from typing import Literal
 
-def collection_exists(mongo_db, name):
+def collection_exists(mongo_db: Database, name: str):
     return name in mongo_db.list_collection_names()
 
-def initialize_mongo_db(mongo_db):
+def initialize_mongo_db(mongo_db: Database):
     providers_df = pd.read_csv("data/proveedor.csv", sep=';', encoding='latin1')
     telephones_df = pd.read_csv("data/telefono.csv", sep=';', encoding='latin1')
     products_df = pd.read_csv("data/producto.csv", sep=';', encoding='latin1')
@@ -65,7 +66,7 @@ def initialize_mongo_db(mongo_db):
         upsert=True
     )
 
-def get_next_sequence(mongo_db, table_name: Literal['providers', 'products']):
+def get_next_sequence(mongo_db: Database, table_name: Literal['providers', 'products']):
     counter = mongo_db["counters"].find_one_and_update(
         {"_id": table_name},
         {"$inc": {"seq": 1}},
