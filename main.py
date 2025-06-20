@@ -1,32 +1,22 @@
-from time import sleep
+import os
+
 from pymongo import MongoClient
 from neo4j import GraphDatabase
-
-from src.mongo_utils import initialize_mongo_db
+from dotenv import load_dotenv
 from src.options import Options
 
-mongo_client = MongoClient("mongodb://localhost:27017")
-mongo_db = mongo_client["back_office"]
+load_dotenv()
 
-initialize_mongo_db(mongo_db)
-
-"""
-# Neo4j
-neo_driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
-def crear_nodo(tx):
-    tx.run("MERGE (:Proveedor {nombre: 'ProveedorX'})")
-with neo_driver.session() as session:
-    session.execute_write(crear_nodo)
-print("✔ Neo4j conectado y nodo creado.")
-
-print("Main funcionando, código de prueba comentado en el mismo")
-"""
+mongo_client = MongoClient(os.getenv("MONGO_CLIENT_URL"))
+neo_driver = GraphDatabase.driver(
+    os.getenv("NEO4J_URL"),
+    auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASS"))
+)
 
 print("Bienvenido al Backoffice de proveedores de productos en distintas órdenes")
 print("Elija una de las siguientes opciones:")
-sleep(3)
 
-options = Options(mongo_db, 1)
+options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], 1)
 
 keep_iterating = True
 while keep_iterating:
