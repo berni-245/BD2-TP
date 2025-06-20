@@ -1,4 +1,4 @@
-# Bases de Datos 2 - Persistencia Políglota
+# Base de Datos 2 - Persistencia Políglota
 
 ## 👋 Introducción
 
@@ -76,7 +76,11 @@ Si deseas acceder a la terminal de Cassandra correr:
 docker exec -it bd2-tp-cassandra cqlsh
 ```
 
-Para el caso de Neo4j acceder a http://localhost:7474 con el usuario `neo4j` y contraseña `password` para correr la terminal y visualizar la información.
+Si deseas acceder a la terminal de Neo4j correr:
+```sh
+docker exec -it bd2-tp-neo4j cypher-shell -u neo4j -p password
+```
+Para Neo4j se puede acceder al web ui desde http://localhost:7474 con el usuario `neo4j` y contraseña `password`.
 
 Para probar la aplicación, correr:
 ```shell
