@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 pandas = "*"
+pymongo = "*"
+cassandra-driver = "*"
+neo4j = "*"
 
 [dev-packages]
 

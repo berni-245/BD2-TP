@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+
+  mongo:
+    container_name: bd2-tp-mongo
+    image: mongo
+    ports:
+      - "27017:27017"
+
+  cassandra:
+    container_name: bd2-tp-cassandra
+    image: cassandra:4.0
+    ports:
+      - "9042:9042"
+
+  neo4j:
+    container_name: bd2-tp-neo4j
+    image: neo4j:5
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    ports:
+      - "7474:7474"
+      - "7687:7687"
