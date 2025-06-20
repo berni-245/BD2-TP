@@ -71,11 +71,6 @@ Si deseas acceder a la terminal de MongoDB correr:
 docker exec -it bd2-tp-mongo mongosh
 ```
 
-Si deseas acceder a la terminal de Cassandra correr:
-```sh
-docker exec -it bd2-tp-cassandra cqlsh
-```
-
 Si deseas acceder a la terminal de Neo4j correr:
 ```sh
 docker exec -it bd2-tp-neo4j cypher-shell -u neo4j -p password
