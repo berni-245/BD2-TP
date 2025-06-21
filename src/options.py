@@ -1,4 +1,6 @@
 from typing import Any, Dict, Tuple
+from xml.etree.ElementTree import ParseError
+from matplotlib import category
 from pymongo.database import Database, Collection
 from neo4j import Driver
 from pprint import pprint
@@ -7,7 +9,7 @@ from src.mongo_utils import get_next_sequence
 from src.utils import validate_future_date
 
 class Options():
-    def __init__(self, mongo_db: Database, neo4j_db) -> None:
+    def __init__(self, mongo_db: Database, neo4j_db: Driver) -> None:
         self.mongo_db = mongo_db
         self.neo4j_db = neo4j_db
         self.options = {
@@ -18,6 +20,7 @@ class Options():
              4: lambda: option4(self.mongo_db, self.neo4j_db),
              5: lambda: option5(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db, self.neo4j_db),
+            14: lambda: option14(self.mongo_db, self.neo4j_db),
             15: lambda: option15(self.mongo_db, self.neo4j_db),
         }
 
@@ -80,9 +83,13 @@ def option13(mongo_db: Database, neo_driver: Driver):
     while keep_iterating:
         print("0 - Regresar")
         print("1 - Agregar un nuevo proveedor.")
-        print("2 - Modificar un proveedor existente dado su razón social (nombre de sociedad).")
-        print("3 - Borrar un proveedor existente dado su razón social (nombre de sociedad).")
-        option = int(input("Elige una opción (0-3): "))
+        print("2 - Modificar un proveedor existente dado su CUIT.")
+        print("3 - Borrar un proveedor existente dado su CUIT.")
+        try:
+            option = int(input("Elige una opción (0-3): "))
+        except ValueError:
+            print("Opción inválida")
+            continue
         if option > 3:
             print("Opción inválida")
             continue
@@ -237,7 +244,135 @@ def option13_3(mongo_db: Database, neo_driver: Driver):
         )
     
     print("Proveedor eliminado correctamente.")
+
+
+def option14(mongo_db: Database, neo_driver: Driver):
+    print("------------------------------------------------")
+    print("Agregar y modificar productos:")
+    print("------------------------------------------------")
+    keep_iterating = True
+    while keep_iterating:
+        print("0 - Regresar")
+        print("1 - Agregar un nuevo producto.")
+        print("2 - Modificar un producto dado su descripción y su categoría.")
+        try:
+            option = int(input("Elige una opción (0-2): "))
+        except ValueError:
+            print("Opción inválida")
+            continue
+        if option > 2:
+            print("Opción inválida")
+            continue
+
+        if option == 0:
+            keep_iterating = False
+        if option == 1:
+            option14_1(mongo_db, neo_driver)
+        if option == 2:
+            option14_2(mongo_db)
+    return True
     
+def option14_1(mongo_db: Database, neo_driver: Driver):
+    print("Ingrese los datos del producto a agregar.")
+    products_collection = mongo_db["products"]
+
+    repetead_key = True
+    while repetead_key:
+        print("Ingrese una descripción y marca de producto únicas.")
+        description = input("Ingrese la descripción del producto: ")
+        brand = input("Ingrese la marca del producto: ")
+        repetead_key = products_collection.count_documents({"description": description, "brand": brand}) > 0
+
+    category = input("Ingrese la categoría del producto: ")
+    
+    valid_input = False
+    while not valid_input:
+        try:
+            price = float(input("Ingrese el precio del producto: "))
+            valid_input = True
+        except ValueError:
+            continue
+
+    valid_input = False
+    while not valid_input:
+        try:
+            current_stock = int(input("Ingresa el stock inicial que poseas: "))
+            valid_input = True
+        except ValueError:
+            continue
+
+    id = get_next_sequence(mongo_db, "products")
+    product_doc = {
+        "id": id,
+        "description": description, # type: ignore
+        "brand": brand, # type: ignore
+        "category": category,
+        "price": price, # type: ignore
+        "current_stock": current_stock, # type: ignore
+        "future_stock": 0
+    }
+
+    products_collection.insert_one(product_doc)
+    
+    with neo_driver.session() as session:
+        session.execute_write(
+            lambda tx:
+            tx.run("CREATE (:Product {id: $id})", id=id),
+        )
+
+
+def option14_2(mongo_db: Database):
+    print("Para dejar un dato igual, dejar el campo en blanco.")
+    products_collection = mongo_db["products"]
+        
+    print("Ingrese una descripción y marca de producto a modificar.")
+    description = input("Ingrese la descripción del producto: ")
+    brand = input("Ingrese la marca del producto: ")
+    if products_collection.count_documents({"description": description, "brand": brand}) == 0:
+        return
+    
+    new_doc = {}
+
+    repetead_key = True
+    while repetead_key:
+        print("Ingrese una descripción y marca de producto no existentes.")
+        description = input("Ingrese la descripción del producto: ")
+        brand = input("Ingrese la marca del producto: ")
+        if description == "" or brand == "":
+            break
+        repetead_key = products_collection.count_documents({"description": description, "brand": brand}) > 0
+    
+    if (description != "") and (brand != ""):
+        new_doc["description"] = description
+        new_doc["brand"] = brand
+
+    category = input("Ingrese la categoría del producto: ")
+
+    if not category == "":
+        new_doc["category"] = category
+    
+    try:
+        price = float(input("Ingrese el precio del producto: "))
+        if price >= 0:
+            new_doc["price"] = price
+    except ValueError:
+        pass
+
+    try:
+        current_stock = int(input("Ingrese el nuevo stock actual del producto: "))
+        if current_stock >= 0:
+            new_doc["current_stock"] = current_stock
+    except ValueError:
+        pass    
+    
+    if new_doc:
+        products_collection.update_one(
+            {"description": description, "brand": brand},
+            {"$set": new_doc}
+        )
+        print("Producto actualizado correctamente.")
+    else:
+        print("No se ingresaron datos para modificar.")    
 
 def parse_phone(raw_str: str) -> Tuple[bool, Dict]:
     split_args = raw_str.split(";")
@@ -269,7 +404,7 @@ def option4(mongo_db: Database, neo_driver: Driver):
     mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
 
     for provider in mongo_providers:
-        print(f"CUIT: {provider["CUIT"]} - {provider["society_name"]}")
+        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}")
 
     return True
 
@@ -298,7 +433,91 @@ def option5(mongo_db: Database, neo_driver: Driver):
     for provider in mongo_providers:
         active = "Activo" if provider["active"] else "Inactivo"
         enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
-        print(f"CUIT: {provider["CUIT"]} - {provider["society_name"]}: {active} - {enabled}")
+        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
+    return True
+
+
+def option15(mongo_db: Database, neo_driver: Driver):
+    print("Ingrese los datos de la orden.")
+    providers_collection = mongo_db.providers
+    products_collection = mongo_db.products
+
+    while True:
+        cuit = input("Ingrese el CUIT de un proveedor existente o deje el campo en blanco para cancelar: ").strip()
+        
+        if not cuit:
+            return True
+
+        provider = providers_collection.find_one({"CUIT": cuit})
+
+        if not provider:
+            print("CUIT inválido. Intente nuevamente.")
+        elif not provider.get('active', False):
+            print("El proveedor no está activo. Intente con otro CUIT.")
+        elif not provider.get('enabled', False):
+            print("El proveedor no está habilitado. Intente con otro CUIT.")
+        else:
+            break
+
+    while True:
+        date_input = input("Ingresar fecha futura (dd/mm/yyyy): ")
+        if not date_input:
+            print("Fecha no ingresada. Abortando creación de la orden.")
+            return True
+        date = validate_future_date(date_input)
+        if date:
+            break
+
+    while True:
+        try:
+            iva = int(input("Ingrese el porcentaje de IVA de la orden: "))
+            if 0 < iva < 100:
+                break
+            print("IVA inválido, debe estar en el intervalo (0, 100).")
+        except ValueError:
+            print("Entrada inválida, debe ingresar un número entero.")
+    
+    print("Ingrese los datos del producto. Ingresar un campo en blanco finaliza la selección de productos.")
+    order_details = []
+    total_cost = 0
+    while True:
+        description = input("Ingrese la descripción del producto: ")
+        if not description:
+            break
+        brand = input("Ingrese la marca del producto: ")
+        if not brand:
+            break
+        product = products_collection.find_one({"description": description, "brand": brand})
+        if not product:
+            print("El producto especificado no se encuentra en la base. Intente nuevamente.")
+        else:
+            while True:
+                try:
+                    quantity = int(input("Ingrese la cantidad requerida: "))
+                    if iva > 0:
+                        break
+                    print("La cantidad debe ser mayor a 0.")
+                except ValueError:
+                    print("Entrada inválida, debe ingresar un número entero.")
+            order_details.append({ 'id': product['id'], 'quantity': quantity })
+            total_cost += product['price'] * quantity
+
+    if len(order_details) == 0:
+        print("No se ingresaron productos, se cancelará la creación de la orden.")
+        return True
+
+    order_id = get_next_sequence(mongo_db, "orders")
+
+    with neo_driver.session() as session:
+        session.execute_write(
+            new_order,
+            provider['id'],
+            order_id,
+            date_input,
+            total_cost,
+            iva,
+            order_details
+        )
 
     return True
 
