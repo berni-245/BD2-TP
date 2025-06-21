@@ -41,6 +41,12 @@ def initialize_mongo_db(mongo_db: Database):
             providers_collection.insert_one(provider_doc)
 
             providers_collection.create_index(
+                [("id", 1)],
+                unique=True,
+                name="providers_unique_ID"
+            )
+
+            providers_collection.create_index(
                 [("CUIT", 1)],
                 unique=True,
                 name="unique_CUIT"
@@ -61,6 +67,12 @@ def initialize_mongo_db(mongo_db: Database):
             }
 
             products_collection.insert_one(product_doc)
+
+            products_collection.create_index(
+                [("id", 1)],
+                unique=True,
+                name="products_unique_id"
+            )
 
             products_collection.create_index(
                 [("brand", 1), ("description", 1)],

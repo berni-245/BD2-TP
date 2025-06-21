@@ -1,4 +1,5 @@
 import os
+from time import sleep
 
 from pymongo import MongoClient
 from neo4j import GraphDatabase
@@ -21,6 +22,7 @@ def main():
 
     keep_iterating = True
     while keep_iterating:
+        sleep(1)
         print()
         print("0 - Abandonar aplicación")
         print("1 - Obtener los datos de los proveedores activos y habilitados junto con sus teléfonos.")

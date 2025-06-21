@@ -29,7 +29,7 @@ Parado en la carpeta del proyecto ejecutar:
 pipenv install
 ```
 
-para instalar las dependencias necesarias en el ambiente virtual.
+para instalar las dependencias necesarias en el ambiente virtual. De requerirse, especificar el path del interprete de python con `pipenv --python <path>`
 
 Vertificar tener docker y docker-compose instalados escribiendo en la terminal:
 
