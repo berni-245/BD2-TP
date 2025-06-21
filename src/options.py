@@ -1,5 +1,7 @@
-from pymongo.database import Database
+from typing import Any, Dict, Tuple
+from pymongo.database import Database, Collection
 from pprint import pprint
+from src.mongo_utils import get_next_sequence
 
 class Options():
     def __init__(self, mongo_db: Database, neo4j_db) -> None:
@@ -10,6 +12,7 @@ class Options():
             1: lambda: option1(self.mongo_db),
             2: lambda: option2(self.mongo_db),
             3: lambda: option3(self.mongo_db),
+            13: lambda: option13(self.mongo_db)
         }
 
     def exec_option(self, option_num: int) -> bool:
@@ -62,5 +65,166 @@ def option3(mongo_db: Database):
                 "phone": phone
             })
     return True
+
+def option13(mongo_db: Database):
+    print("------------------------------------------------")
+    print("Agregar, modificar o borrar proveedores:")
+    print("------------------------------------------------")
+    keep_iterating = True
+    while keep_iterating:
+        print("0 - Regresar")
+        print("1 - Agregar un nuevo proveedor.")
+        print("2 - Modificar un proveedor existente dado su razón social (nombre de sociedad).")
+        print("3 - Borrar un proveedor existente dado su razón social (nombre de sociedad).")
+        option = int(input("Elige una opción (0-3): "))
+        if option > 3:
+            print("Opción inválida")
+            continue
+
+        if option == 0:
+            keep_iterating = False
+
+        if option == 1:
+            option13_1(mongo_db)
+        if option == 2:
+            option13_2(mongo_db)
+        if option == 3:
+            option13_3(mongo_db)
+    return True
+
+def option13_1(mongo_db: Database):
+    print("Ingresa los datos del proveedor a agregar.")
+    providers_collection = mongo_db["providers"]
+
+    cuit = input("Ingresa CUIT: ")
+
+    repetead_key = True
+    while repetead_key:
+        society_name = input("Ingresa razón social (nombre de sociedad) no existente: ")
+        repetead_key = providers_collection.count_documents({"society_name": society_name}) > 0          
+    
+    society_type = input("Ingresa un tipo de sociedad: ")
+    address = input("Ingresa la dirección: ")
+    active = input("Ingresa si está activo (y = true / otra respuesta = false): ") == "y"
+    enabled = input("Ingresa si está habilitado (y = true / otra respuesta = false): ") == "y"
+
+    phones = []
+    more_phones = True
+    while more_phones:
+        result = parse_phone(input("Para ingresar un número escríbalo en formato '<código de área>;<número>;<tipo de teléfono (F/M)>', cualquier otro formato o dejarlo vacío asumirá que no hay más inserciones: "))
+        if result[0]:
+            phones.append(result[1])
+        else:
+            more_phones = False
+
+    provider_doc = {
+        "id": get_next_sequence(mongo_db, "providers"),
+        "CUIT": cuit,
+        "society_name": society_name, # type: ignore
+        "society_type": society_type,
+        "address": address,
+        "active": active,
+        "enabled": enabled,
+        "phones": phones
+    }
+
+    providers_collection.insert_one(provider_doc)
+
+def option13_2(mongo_db: Database):
+    print("Para dejar un dato igual, dejar el campo en blanco.")
+    providers_collection = mongo_db["providers"]
+    original_society_name = input("Ingresa razón social (nombre de sociedad) a modificar: ")
+    if providers_collection.count_documents({"society_name": original_society_name}) == 0:
+        return
+    
+    new_doc = {}
+    
+    cuit = input("Ingresa CUIT: ")
+    if not cuit == "":
+        new_doc["CUIT"] = cuit
+
+    repetead_key = True
+    while repetead_key:
+        society_name = input("Ingresa razón social (nombre de sociedad) no existente: ")
+        if society_name == "":
+            break
+        repetead_key = providers_collection.count_documents({"society_name": society_name}) > 0
+    
+    if not society_name == "": # type: ignore
+        new_doc["society_name"] = society_name # type: ignore
+    
+    society_type = input("Ingresa un tipo de sociedad: ")
+    if not society_type == "":
+        new_doc["society_type"] = society_type
+
+    address = input("Ingresa la dirección: ")
+    if not address == "":
+        new_doc["address"] = address
+
+    active = input("Ingresa si está activo (y = true / otra respuesta no vacía = false): ")
+    if not active == "":
+        new_doc["active"] = active == "y"
+
+    enabled = input("Ingresa si está habilitado (y = true / otra respuesta no vacía = false): ") == "y"
+    if not enabled == "":
+        new_doc["enabled"] = enabled == "y"
+
+    phone_option = input("1: Replace all phones, 2: Add phones, otherwise skip")
+    if phone_option == "1" or phone_option == "2":
+        phones = []
+        more_phones = True
+        while more_phones:
+            result = parse_phone(input("Para ingresar un número escríbalo en formato '<código de área>;<número>;<tipo de teléfono (F/M)>', cualquier otro formato o dejarlo vacío asumirá que no hay más inserciones: "))
+            if result[0]:
+                phones.append(result[1])
+            else:
+                more_phones = False
+        if phone_option == "2":
+            new_doc["phones"] = phones
+        if phone_option == "1":
+            providers_collection.update_one(
+                {"society_name": original_society_name},
+                {"$push": {
+                    "phones": {
+                        "$each": phones
+                    }
+                }}
+            )
+    
+    if new_doc:
+        providers_collection.update_one(
+            {"society_name": original_society_name},
+            {"$set": new_doc}
+        )
+        print("Proveedor actualizado correctamente.")
+    else:
+        print("No se ingresaron datos para modificar.")    
+            
+def option13_3(mongo_db: Database):
+    print("Para no borrar, dejar el campo en blanco.")
+    providers_collection = mongo_db["providers"]
+    original_society_name = input("Ingresa razón social (nombre de sociedad) a modificar: ")
+    if providers_collection.count_documents({"society_name": original_society_name}) == 0:
+        return
+    
+    mongo_db["providers"].delete_one({"society_name": original_society_name})
+    
+    print("Proveedor eliminado correctamente.")
+    
+    
+
+def parse_phone(raw_str: str) -> Tuple[bool, Dict]:
+    split_args = raw_str.split(";")
+    if not len(split_args) == 3:
+        return (False, {})
+    phone = {
+        "area_code": split_args[0],
+        "phone_number": split_args[1],
+        "phone_type": split_args[2]
+    }
+    return (True, phone)
+
+
+
 
     
