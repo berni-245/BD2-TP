@@ -10,9 +10,12 @@ def initialize_neo_db(neo_driver: Driver):
     with neo_driver.session() as session:
         for _, order in orders_df.iterrows():
             details = order_details_df[order_details_df['id_pedido'] == order['id_pedido']].to_dict(orient="records") #type:ignore
-            product_ids = [d['id_producto'] for d in details]
             matched_products = products_df[products_df['id_producto'].isin(product_ids)]
-            total_cost = matched_products['precio'].sum()
+            price_lookup = dict(zip(products_df['id_producto'], products_df['precio']))
+            total_cost = sum(
+                detail['cantidad'] * price_lookup.get(detail['id_producto'], 0)
+                for detail in details
+            )
 
             session.execute_write(
                 new_order,
@@ -55,4 +58,3 @@ def new_order(tx, provider_id, order_id, expected_delivery_date, order_details, 
             order_id=order_id,
             quantity=detail['cantidad']
         )
-
