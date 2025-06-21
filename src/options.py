@@ -75,6 +75,56 @@ def option3(mongo_db: Database):
             })
     return True
 
+def option4(mongo_db: Database, neo_driver: Driver):
+    print("---------------------------------------------------------------------------------")
+    print("Obtener todos los proveedores que tengan registrada al menos una orden de pedido:")
+    print("---------------------------------------------------------------------------------")
+
+    with neo_driver.session() as session:
+        provider_ids = session.execute_read(
+            lambda tx: 
+            [
+                record["p"]["id"]
+                for record in
+                tx.run("MATCH (p:Provider)<-[r]-() RETURN DISTINCT p")
+            ]
+        )
+
+    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+
+    for provider in mongo_providers:
+        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}")
+
+    return True
+
+def option5(mongo_db: Database, neo_driver: Driver):
+    print("--------------------------------------------------------------------------")
+    print("Obtener todos los proveedores que no tengan registradas ordenes de pedido:")
+    print("--------------------------------------------------------------------------")
+
+    with neo_driver.session() as session:
+        provider_ids = session.execute_read(
+            lambda tx: 
+            [
+                record["p"]["id"]
+                for record in
+                    tx.run("""
+                    MATCH (p:Provider)
+                    WHERE NOT (p)<-[:OrderedFrom]-()
+                    RETURN p
+                    """)
+            ]
+        )
+
+    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+
+    for provider in mongo_providers:
+        active = "Activo" if provider["active"] else "Inactivo"
+        enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
+        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
+    return True
+
+
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")
     print("Agregar, modificar o borrar proveedores:")
@@ -381,56 +431,6 @@ def option14_2(mongo_db: Database):
         print("Producto actualizado correctamente.")
     else:
         print("No se ingresaron datos para modificar.")    
-
-
-def option4(mongo_db: Database, neo_driver: Driver):
-    print("---------------------------------------------------------------------------------")
-    print("Obtener todos los proveedores que tengan registrada al menos una orden de pedido:")
-    print("---------------------------------------------------------------------------------")
-
-    with neo_driver.session() as session:
-        provider_ids = session.execute_read(
-            lambda tx: 
-            [
-                record["p"]["id"]
-                for record in
-                tx.run("MATCH (p:Provider)<-[r]-() RETURN DISTINCT p")
-            ]
-        )
-
-    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
-
-    for provider in mongo_providers:
-        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}")
-
-    return True
-
-def option5(mongo_db: Database, neo_driver: Driver):
-    print("--------------------------------------------------------------------------")
-    print("Obtener todos los proveedores que no tengan registradas ordenes de pedido:")
-    print("--------------------------------------------------------------------------")
-
-    with neo_driver.session() as session:
-        provider_ids = session.execute_read(
-            lambda tx: 
-            [
-                record["p"]["id"]
-                for record in
-                    tx.run("""
-                    MATCH (p:Provider)
-                    WHERE NOT (p)<-[:OrderedFrom]-()
-                    RETURN p
-                    """)
-            ]
-        )
-
-    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
-
-    for provider in mongo_providers:
-        active = "Activo" if provider["active"] else "Inactivo"
-        enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
-        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
-    return True
 
 
 def option15(mongo_db: Database, neo_driver: Driver):
