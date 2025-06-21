@@ -2,7 +2,7 @@
 
 ## 👋 Introducción
 
-// todo (acá una breve descripción del trabajo)
+En este trabajo práctico para la materia Base de Datos 2 se buscó armar una simple interfaz que utilizara dos bases de datos, MongoDB y Neo4j. El contexto del tp es un BackOffice dónde se puede ordenar a proveedores distintos productos.
 
 Este fue el [Enunciado](docs/Trabajo_obligatorio_2025-1.pdf)
 
@@ -37,7 +37,7 @@ Vertificar tener docker y docker-compose instalados escribiendo en la terminal:
 docker --version
 docker-compose --version
 ```
-// Todo: poner algún comando o algo acá para instalar docker y docker-compose (asumo que el equipo lo tendrá)
+De no tenerlos, usar algo gestor de paquetes en Linux o Docker Desktop en Windows.
 
 Deberían mostrar algo así:
 ```sh
@@ -77,7 +77,13 @@ docker exec -it bd2-tp-neo4j cypher-shell -u neo4j -p password
 ```
 Para Neo4j se puede acceder al web ui desde http://localhost:7474 con el usuario `neo4j` y contraseña `password`.
 
+Para inicializar la base de datos, correr:
 Para probar la aplicación, correr:
+```shell
+pipenv run python initialize_db.py
+```
+
+Para probar la aplicación y su interfaz, correr:
 ```shell
 pipenv run python main.py
 ```
