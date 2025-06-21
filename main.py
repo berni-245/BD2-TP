@@ -17,7 +17,7 @@ def main():
     print("Bienvenido al Backoffice de proveedores de productos en distintas órdenes")
     print("Elija una de las siguientes opciones:")
 
-    options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], neo_driver)
+    options = Options(mongo_client[str(os.getenv("MONGO_DB_NAME"))], neo_driver)
 
     keep_iterating = True
     while keep_iterating:
@@ -39,7 +39,11 @@ def main():
         print("14 - Crear nuevos productos y modificar los ya existentes.")
         print("15 - Registrar nuevas órdenes de pedido a los proveedores si corresponde.")
         print()
-        option_num = int(input("Ingresar opción (0 - 15): "))
+        try:
+            option_num = int(input("Ingresar opción (0 - 15): "))
+        except ValueError:
+            print("Invalid option")
+            continue
         print()
         keep_iterating = options.exec_option(option_num)
 
