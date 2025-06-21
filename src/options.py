@@ -266,7 +266,7 @@ def option4(mongo_db: Database, neo_driver: Driver):
     mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
 
     for provider in mongo_providers:
-        print(f"{provider["society_name"]}")
+        print(f"CUIT: {provider["CUIT"]} - {provider["society_name"]}")
 
     return True
 
@@ -295,6 +295,6 @@ def option5(mongo_db: Database, neo_driver: Driver):
     for provider in mongo_providers:
         active = "Activo" if provider["active"] else "Inactivo"
         enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
-        print(f"{provider["society_name"]}: {active} - {enabled}")
+        print(f"CUIT: {provider["CUIT"]} - {provider["society_name"]}: {active} - {enabled}")
 
     return True
