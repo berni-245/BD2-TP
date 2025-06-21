@@ -394,7 +394,7 @@ def option4(mongo_db: Database, neo_driver: Driver):
             [
                 record["p"]["id"]
                 for record in
-                tx.run("MATCH (p:Provider)-[r]->() RETURN DISTINCT p")
+                tx.run("MATCH (p:Provider)<-[r]-() RETURN DISTINCT p")
             ]
         )
 
@@ -418,9 +418,8 @@ def option5(mongo_db: Database, neo_driver: Driver):
                 for record in
                     tx.run("""
                     MATCH (p:Provider)
-                    WHERE NOT (p)-[:Ordered]->()
-                    OPTIONAL MATCH (p)-[r]->()
-                    RETURN p, count(r) AS total_relationships
+                    WHERE NOT (p)<-[:OrderedFrom]-()
+                    RETURN p
                     """)
             ]
         )
