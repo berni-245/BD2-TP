@@ -96,19 +96,19 @@ def option13(mongo_db: Database):
     return True
 
 def option13_1(mongo_db: Database):
-    print("Ingresa los datos del proveedor a agregar.")
+    print("Ingrese los datos del proveedor a agregar.")
     providers_collection = mongo_db["providers"]
 
     repetead_key = True
     while repetead_key:
-        cuit = input("Ingresa el CUIT no existente de proveedor a insertar: ")
+        cuit = input("Ingrese el CUIT no existente de proveedor a insertar: ")
         repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0          
     
-    society_name = input("Ingresa la razón social (nombre de sociedad): ")
-    society_type = input("Ingresa un tipo de sociedad: ")
-    address = input("Ingresa la dirección: ")
-    active = input("Ingresa si está activo (y = true / otra respuesta = false): ") == "y"
-    enabled = input("Ingresa si está habilitado (y = true / otra respuesta = false): ") == "y"
+    society_name = input("Ingrese la razón social (nombre de sociedad): ")
+    society_type = input("Ingrese un tipo de sociedad: ")
+    address = input("Ingrese la dirección: ")
+    active = input("Ingrese si está activo (y = true / otra respuesta = false): ") == "y"
+    enabled = input("Ingrese si está habilitado (y = true / otra respuesta = false): ") == "y"
 
     phones = []
     more_phones = True
@@ -135,7 +135,7 @@ def option13_1(mongo_db: Database):
 def option13_2(mongo_db: Database):
     print("Para dejar un dato igual, dejar el campo en blanco.")
     providers_collection = mongo_db["providers"]
-    original_cuit = input("Ingresa CUIT de proveedor a modificar: ")
+    original_cuit = input("Ingrese CUIT de proveedor a modificar: ")
     if providers_collection.count_documents({"CUIT": original_cuit}) == 0:
         return
     
@@ -143,7 +143,7 @@ def option13_2(mongo_db: Database):
 
     repetead_key = True
     while repetead_key:
-        cuit = input("Cambia a un CUIT no existente: ")
+        cuit = input("Cambie a un CUIT no existente: ")
         if cuit == "":
             break
         repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0
@@ -151,24 +151,24 @@ def option13_2(mongo_db: Database):
     if not cuit == "": # type: ignore
         new_doc["CUIT"] = cuit # type: ignore
     
-    society_name = input("Ingresa razón social (nombre de sociedad): ")
+    society_name = input("Ingrese razón social (nombre de sociedad): ")
     
     if not society_name == "": 
         new_doc["society_name"] = society_name 
     
-    society_type = input("Ingresa un tipo de sociedad: ")
+    society_type = input("Ingrese un tipo de sociedad: ")
     if not society_type == "":
         new_doc["society_type"] = society_type
 
-    address = input("Ingresa la dirección: ")
+    address = input("Ingrese la dirección: ")
     if not address == "":
         new_doc["address"] = address
 
-    active = input("Ingresa si está activo (y = true / otra respuesta no vacía = false): ")
+    active = input("Ingrese si está activo (y = true / otra respuesta no vacía = false): ")
     if not active == "":
         new_doc["active"] = active == "y"
 
-    enabled = input("Ingresa si está habilitado (y = true / otra respuesta no vacía = false): ")
+    enabled = input("Ingrese si está habilitado (y = true / otra respuesta no vacía = false): ")
     if not enabled == "":
         new_doc["enabled"] = enabled == "y"
 
@@ -206,7 +206,7 @@ def option13_2(mongo_db: Database):
 def option13_3(mongo_db: Database):
     print("Para no borrar, dejar el campo en blanco.")
     providers_collection = mongo_db["providers"]
-    original_cuit = input("Ingresa CUIT de proveedor a modificar: ")
+    original_cuit = input("Ingrese CUIT de proveedor a modificar: ")
     if providers_collection.count_documents({"CUIT": original_cuit}) == 0:
         return
     
