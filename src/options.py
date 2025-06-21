@@ -291,6 +291,7 @@ def option14_1(mongo_db: Database, neo_driver: Driver):
             price = float(input("Ingrese el precio del producto: "))
             valid_input = True
         except ValueError:
+            print("Invalid type, retrying...")
             continue
 
     valid_input = False
@@ -299,6 +300,7 @@ def option14_1(mongo_db: Database, neo_driver: Driver):
             current_stock = int(input("Ingresa el stock inicial que poseas: "))
             valid_input = True
         except ValueError:
+            print("Invalid type, retrying...")
             continue
 
     id = get_next_sequence(mongo_db, "products")
@@ -326,9 +328,9 @@ def option14_2(mongo_db: Database):
     products_collection = mongo_db["products"]
         
     print("Ingrese una descripción y marca de producto a modificar.")
-    description = input("Ingrese la descripción del producto: ")
-    brand = input("Ingrese la marca del producto: ")
-    if products_collection.count_documents({"description": description, "brand": brand}) == 0:
+    original_description = input("Ingrese la descripción del producto: ")
+    original_brand = input("Ingrese la marca del producto: ")
+    if products_collection.count_documents({"description": original_description, "brand": original_brand}) == 0:
         return
     
     new_doc = {}
@@ -338,13 +340,19 @@ def option14_2(mongo_db: Database):
         print("Ingrese una descripción y marca de producto no existentes.")
         description = input("Ingrese la descripción del producto: ")
         brand = input("Ingrese la marca del producto: ")
-        if description == "" or brand == "":
+        if description == "" and brand == "":
             break
+        if description == "":
+            new_doc["description"] = original_description
+
+        if brand == "":
+            new_doc["brand"] = original_brand
         repetead_key = products_collection.count_documents({"description": description, "brand": brand}) > 0
     
-    if (description != "") and (brand != ""):
-        new_doc["description"] = description
-        new_doc["brand"] = brand
+    if not description == "": # type: ignore
+        new_doc["description"] = description # type: ignore
+    if not brand == "": # type: ignore
+        new_doc["brand"] = brand # type: ignore
 
     category = input("Ingrese la categoría del producto: ")
 
@@ -356,6 +364,7 @@ def option14_2(mongo_db: Database):
         if price >= 0:
             new_doc["price"] = price
     except ValueError:
+        print("Invalid type, ignoring...")
         pass
 
     try:
@@ -363,11 +372,12 @@ def option14_2(mongo_db: Database):
         if current_stock >= 0:
             new_doc["current_stock"] = current_stock
     except ValueError:
+        print("Invalid type, ignoring...")
         pass    
     
     if new_doc:
         products_collection.update_one(
-            {"description": description, "brand": brand},
+            {"description": original_description, "brand": original_brand},
             {"$set": new_doc}
         )
         print("Producto actualizado correctamente.")
