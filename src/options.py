@@ -1,12 +1,9 @@
-from typing import Any, Dict, Tuple
-from xml.etree.ElementTree import ParseError
-from matplotlib import category
-from pymongo.database import Database, Collection
+from pymongo.database import Database
 from neo4j import Driver
 from pprint import pprint
 from src.neo4j_utils import new_order
-from src.mongo_utils import get_next_sequence, parse_phone
-from src.utils import validate_future_date
+from src.mongo_utils import get_next_sequence
+from src.utils import validate_future_date, parse_phone
 
 class Options():
     def __init__(self, mongo_db: Database, neo4j_db: Driver) -> None:
@@ -124,6 +121,31 @@ def option5(mongo_db: Database, neo_driver: Driver):
         print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
     return True
 
+def option6(mongo_db: Database, neo_driver: Driver):
+    print("----------------------")
+    print("Órdenes por proveedor:")
+    print("----------------------")
+
+    with neo_driver.session() as session:
+        orders_by_provider = session.execute_read(
+            lambda tx: 
+                tx.run("""
+                MATCH (p:Provider)<-[:OrderedFrom]-(o:Order)
+                RETURN p.id AS provider_id, o
+                ORDER BY p.id
+                """)
+        )
+
+    print(orders_by_provider)
+
+    # mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+    #
+    # for provider in mongo_providers:
+    #     active = "Activo" if provider["active"] else "Inactivo"
+    #     enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
+    #     print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
+
+    return True
 
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")
