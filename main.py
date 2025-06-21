@@ -16,7 +16,7 @@ neo_driver = GraphDatabase.driver(
 print("Bienvenido al Backoffice de proveedores de productos en distintas órdenes")
 print("Elija una de las siguientes opciones:")
 
-options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], 1) # type: ignore
+options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], neo_driver)
 
 keep_iterating = True
 while keep_iterating:

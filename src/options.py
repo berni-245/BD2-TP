@@ -1,5 +1,6 @@
 from typing import Any, Dict, Tuple
 from pymongo.database import Database, Collection
+from neo4j import Driver
 from pprint import pprint
 from src.mongo_utils import get_next_sequence
 
@@ -8,10 +9,12 @@ class Options():
         self.mongo_db = mongo_db
         self.neo4j_db = neo4j_db
         self.options = {
-            0: lambda: False,
-            1: lambda: option1(self.mongo_db),
-            2: lambda: option2(self.mongo_db),
-            3: lambda: option3(self.mongo_db),
+             0: lambda: False,
+             1: lambda: option1(self.mongo_db),
+             2: lambda: option2(self.mongo_db),
+             3: lambda: option3(self.mongo_db),
+             4: lambda: option4(self.mongo_db, self.neo4j_db),
+             5: lambda: option5(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db)
         }
 
@@ -22,9 +25,9 @@ class Options():
         return self.options[option_num]() 
 
 def option1(mongo_db: Database):
-    print("------------------------------------------------")
+    print("----------------------------------------------------")
     print("Proveedores activos y habilitados con sus teléfonos:")
-    print("------------------------------------------------")
+    print("----------------------------------------------------")
     providers = mongo_db["providers"].find({
         "active": True,
         "enabled": True
@@ -225,6 +228,53 @@ def parse_phone(raw_str: str) -> Tuple[bool, Dict]:
     return (True, phone)
 
 
+def option4(mongo_db: Database, neo_driver: Driver):
+    print("---------------------------------------------------------------------------------")
+    print("Obtener todos los proveedores que tengan registrada al menos una orden de pedido:")
+    print("---------------------------------------------------------------------------------")
 
+    with neo_driver.session() as session:
+        provider_ids = session.execute_read(
+            lambda tx: 
+            [
+                record["p"]["id"]
+                for record in
+                tx.run("MATCH (p:Provider)-[r]->() RETURN DISTINCT p")
+            ]
+        )
 
-    
+    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+
+    for provider in mongo_providers:
+        print(f"{provider["society_name"]}")
+
+    return True
+
+def option5(mongo_db: Database, neo_driver: Driver):
+    print("--------------------------------------------------------------------------")
+    print("Obtener todos los proveedores que no tengan registradas ordenes de pedido:")
+    print("--------------------------------------------------------------------------")
+
+    with neo_driver.session() as session:
+        provider_ids = session.execute_read(
+            lambda tx: 
+            [
+                record["p"]["id"]
+                for record in
+                    tx.run("""
+                    MATCH (p:Provider)
+                    WHERE NOT (p)-[:Ordered]->()
+                    OPTIONAL MATCH (p)-[r]->()
+                    RETURN p, count(r) AS total_relationships
+                    """)
+            ]
+        )
+
+    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+
+    for provider in mongo_providers:
+        active = "Activo" if provider["active"] else "Inactivo"
+        enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
+        print(f"{provider["society_name"]}: {active} - {enabled}")
+
+    return True
