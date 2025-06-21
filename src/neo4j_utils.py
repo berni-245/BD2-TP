@@ -10,7 +10,10 @@ def initialize_neo_db(neo_driver: Driver):
     with neo_driver.session() as session:
         for _, order in orders_df.iterrows():
             details = order_details_df[order_details_df['id_pedido'] == order['id_pedido']].to_dict(orient="records") #type:ignore
-            matched_products = products_df[products_df['id_producto'].isin(product_ids)]
+            mapped_details = [
+                {'id': detail['id_producto'], 'quantity': detail['cantidad']}
+                for detail in details
+            ]
             price_lookup = dict(zip(products_df['id_producto'], products_df['precio']))
             total_cost = sum(
                 detail['cantidad'] * price_lookup.get(detail['id_producto'], 0)
@@ -22,30 +25,31 @@ def initialize_neo_db(neo_driver: Driver):
                 order['id_proveedor'],
                 order['id_pedido'],
                 order['fecha'],
-                details,
-                total_cost
+                total_cost,
+                order['iva'],
+                mapped_details,
             )
 
 
-def new_order(tx, provider_id, order_id, expected_delivery_date, order_details, total_cost):
-    # Ensure Provider and Order nodes exist and connect them
+def new_order(tx, provider_id, order_id, expected_delivery_date, total_cost, iva, order_details):
     tx.run(
         """
         MERGE (p:Provider {id: $provider_id})
         CREATE (o:Order {
             id: $order_id,
             expected_delivery_date: date($expected_delivery_date),
-            total_cost: $total_cost
+            total_cost: $total_cost,
+            iva: $iva
         })
         MERGE (o)-[:OrderedFrom]->(p)
         """,
         provider_id=provider_id,
         order_id=order_id,
         expected_delivery_date=datetime.strptime(expected_delivery_date, "%d/%m/%Y").date().isoformat(),
-        total_cost=total_cost
+        total_cost=total_cost,
+        iva=iva,
     )
 
-    # Add HasItem relationships for each order detail
     for detail in order_details:
         tx.run(
             """
@@ -54,7 +58,8 @@ def new_order(tx, provider_id, order_id, expected_delivery_date, order_details, 
             MERGE (o)-[r:HasItem]->(prod)
             SET r.quantity = $quantity
             """,
-            product_id=detail['id_producto'],
+            product_id=detail['id'],
             order_id=order_id,
-            quantity=detail['cantidad']
+            quantity=detail['quantity']
         )
+

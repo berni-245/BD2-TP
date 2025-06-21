@@ -2,7 +2,9 @@ from typing import Any, Dict, Tuple
 from pymongo.database import Database, Collection
 from neo4j import Driver
 from pprint import pprint
+from src.neo4j_utils import new_order
 from src.mongo_utils import get_next_sequence
+from src.utils import validate_future_date
 
 class Options():
     def __init__(self, mongo_db: Database, neo4j_db) -> None:
@@ -15,7 +17,8 @@ class Options():
              3: lambda: option3(self.mongo_db),
              4: lambda: option4(self.mongo_db, self.neo4j_db),
              5: lambda: option5(self.mongo_db, self.neo4j_db),
-            13: lambda: option13(self.mongo_db, self.neo4j_db)
+            13: lambda: option13(self.mongo_db, self.neo4j_db),
+            15: lambda: option15(self.mongo_db, self.neo4j_db),
         }
 
     def exec_option(self, option_num: int) -> bool:
@@ -296,5 +299,90 @@ def option5(mongo_db: Database, neo_driver: Driver):
         active = "Activo" if provider["active"] else "Inactivo"
         enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
         print(f"CUIT: {provider["CUIT"]} - {provider["society_name"]}: {active} - {enabled}")
+
+    return True
+
+
+def option15(mongo_db: Database, neo_driver: Driver):
+    print("Ingrese los datos de la orden.")
+    providers_collection = mongo_db.providers
+    products_collection = mongo_db.products
+
+    while True:
+        cuit = input("Ingrese el CUIT de un proveedor existente o deje el campo en blanco para cancelar: ").strip()
+        
+        if not cuit:
+            return True
+
+        provider = providers_collection.find_one({"CUIT": cuit})
+
+        if not provider:
+            print("CUIT inválido. Intente nuevamente.")
+        elif not provider.get('active', False):
+            print("El proveedor no está activo. Intente con otro CUIT.")
+        elif not provider.get('enabled', False):
+            print("El proveedor no está habilitado. Intente con otro CUIT.")
+        else:
+            break
+
+    while True:
+        date_input = input("Ingresar fecha futura (dd/mm/yyyy): ")
+        if not date_input:
+            print("Fecha no ingresada. Abortando creación de la orden.")
+            return True
+        date = validate_future_date(date_input)
+        if date:
+            break
+
+    while True:
+        try:
+            iva = int(input("Ingrese el porcentaje de IVA de la orden: "))
+            if 0 < iva < 100:
+                break
+            print("IVA inválido, debe estar en el intervalo (0, 100).")
+        except ValueError:
+            print("Entrada inválida, debe ingresar un número entero.")
+    
+    print("Ingrese los datos del producto. Ingresar un campo en blanco finaliza la selección de productos.")
+    order_details = []
+    total_cost = 0
+    while True:
+        description = input("Ingrese la descripción del producto: ")
+        if not description:
+            break
+        brand = input("Ingrese la marca del producto: ")
+        if not brand:
+            break
+        product = products_collection.find_one({"description": description, "brand": brand})
+        if not product:
+            print("El producto especificado no se encuentra en la base. Intente nuevamente.")
+        else:
+            while True:
+                try:
+                    quantity = int(input("Ingrese la cantidad requerida: "))
+                    if iva > 0:
+                        break
+                    print("La cantidad debe ser mayor a 0.")
+                except ValueError:
+                    print("Entrada inválida, debe ingresar un número entero.")
+            order_details.append({ 'id': product['id'], 'quantity': quantity })
+            total_cost += product['price'] * quantity
+
+    if len(order_details) == 0:
+        print("No se ingresaron productos, se cancelará la creación de la orden.")
+        return True
+
+    order_id = get_next_sequence(mongo_db, "orders")
+
+    with neo_driver.session() as session:
+        session.execute_write(
+            new_order,
+            provider['id'],
+            order_id,
+            date_input,
+            total_cost,
+            iva,
+            order_details
+        )
 
     return True

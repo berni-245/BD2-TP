@@ -10,6 +10,7 @@ def initialize_mongo_db(mongo_db: Database):
     providers_df = pd.read_csv("data/proveedor.csv", sep=';', encoding='latin1')
     telephones_df = pd.read_csv("data/telefono.csv", sep=';', encoding='latin1')
     products_df = pd.read_csv("data/producto.csv", sep=';', encoding='latin1')
+    orders_df = pd.read_csv("data/op.csv", sep=';', encoding='latin1')
 
     if not collection_exists(mongo_db, "providers"):
         providers_collection = mongo_db["providers"]
@@ -80,7 +81,13 @@ def initialize_mongo_db(mongo_db: Database):
             upsert=True
         )
 
-def get_next_sequence(mongo_db: Database, table_name: Literal['providers', 'products']):
+        mongo_db["counters"].update_one(
+            {"_id": "orders"},
+            {"$set": {"seq": int(orders_df["id_pedido"].max() + 1)}},
+            upsert=True
+        )
+
+def get_next_sequence(mongo_db: Database, table_name: Literal['providers', 'products', 'orders']):
     counter = mongo_db["counters"].find_one_and_update(
         {"_id": table_name},
         {"$inc": {"seq": 1}},
