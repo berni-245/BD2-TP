@@ -16,6 +16,7 @@ class Options():
              3: lambda: option3(self.mongo_db),
              4: lambda: option4(self.mongo_db, self.neo4j_db),
              5: lambda: option5(self.mongo_db, self.neo4j_db),
+             6: lambda: option6(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db, self.neo4j_db),
             14: lambda: option14(self.mongo_db, self.neo4j_db),
             15: lambda: option15(self.mongo_db, self.neo4j_db),
@@ -126,25 +127,68 @@ def option6(mongo_db: Database, neo_driver: Driver):
     print("Órdenes por proveedor:")
     print("----------------------")
 
+    providers_collection = mongo_db["providers"]
+
     with neo_driver.session() as session:
         orders_by_provider = session.execute_read(
-            lambda tx: 
-                tx.run("""
+            lambda tx: [
+                record
+                for record in tx.run("""
                 MATCH (p:Provider)<-[:OrderedFrom]-(o:Order)
-                RETURN p.id AS provider_id, o
+                OPTIONAL MATCH (o)-[i:HasItem]->(:Product)
+                RETURN p.id AS provider_id,
+                    count(DISTINCT o) AS order_count,
+                    coalesce(sum(i.price * i.quantity), 0) AS total_cost,
+                    coalesce(sum(i.price * i.quantity * (1 + o.iva / 100.0)), 0) AS total_cost_iva
                 ORDER BY p.id
                 """)
+            ]
         )
 
-    print(orders_by_provider)
+    provider_ids = [entry["provider_id"] for entry in orders_by_provider]
+    mongo_providers = providers_collection.find({ "id": { "$in": provider_ids } })
 
-    # mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
-    #
-    # for provider in mongo_providers:
-    #     active = "Activo" if provider["active"] else "Inactivo"
-    #     enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
-    #     print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
+    provider_info_map = {p["id"]: p for p in mongo_providers}
 
+    for entry in orders_by_provider:
+        provider_id = entry["provider_id"]
+        mongo_info = provider_info_map.get(provider_id, {})
+        print(
+            f"CUIT: {mongo_info['CUIT']:>11} - {mongo_info['society_name']}: "
+            f"{entry['order_count']} órdenes, "
+            f"${entry['total_cost']:.2f} (sin IVA), "
+            f"${entry['total_cost_iva']:.2f} (con IVA)"
+        )
+
+    return True
+
+def option7(mongo_db: Database, neo_driver: Driver):
+    print("-------------------------------------------------------------------------")
+    print("Listar todas las órdenes que hayan sido pedidas al proveedor 30660608175:")
+    print("-------------------------------------------------------------------------")
+
+    provider = mongo_db["providers"].find_one({ "CUIT": "30660608175" })
+
+    with neo_driver.session() as session:
+        provider_ids = session.execute_read(
+            lambda tx: 
+            [
+                record["p"]["id"]
+                for record in
+                    tx.run("""
+                    MATCH (p:Provider)
+                    WHERE NOT (p)<-[:OrderedFrom]-()
+                    RETURN p
+                    """)
+            ]
+        )
+
+    mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
+
+    for provider in mongo_providers:
+        active = "Activo" if provider["active"] else "Inactivo"
+        enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
+        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
     return True
 
 def option13(mongo_db: Database, neo_driver: Driver):
@@ -488,7 +532,7 @@ def option15(mongo_db: Database, neo_driver: Driver):
 
     while True:
         try:
-            iva = int(input("Ingrese el porcentaje de IVA de la orden: "))
+            iva = float(input("Ingrese el porcentaje de IVA de la orden: "))
             if 0 < iva < 100:
                 break
             print("IVA inválido, debe estar en el intervalo (0, 100).")
@@ -497,7 +541,6 @@ def option15(mongo_db: Database, neo_driver: Driver):
     
     print("Ingrese los datos del producto. Ingresar un campo en blanco finaliza la selección de productos.")
     order_details = []
-    total_cost = 0
     while True:
         description = input("Ingrese la descripción del producto: ")
         if not description:
@@ -517,8 +560,7 @@ def option15(mongo_db: Database, neo_driver: Driver):
                     print("La cantidad debe ser mayor a 0.")
                 except ValueError:
                     print("Entrada inválida, debe ingresar un número entero.")
-            order_details.append({ 'id': product['id'], 'quantity': quantity })
-            total_cost += product['price'] * quantity
+            order_details.append({ 'id': product['id'], 'quantity': quantity, 'price': product['price'] })
 
     if len(order_details) == 0:
         print("No se ingresaron productos, se cancelará la creación de la orden.")
@@ -532,7 +574,6 @@ def option15(mongo_db: Database, neo_driver: Driver):
             provider['id'],
             order_id,
             date_input,
-            total_cost,
             iva,
             order_details
         )
