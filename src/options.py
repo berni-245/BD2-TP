@@ -15,7 +15,7 @@ class Options():
              3: lambda: option3(self.mongo_db),
              4: lambda: option4(self.mongo_db, self.neo4j_db),
              5: lambda: option5(self.mongo_db, self.neo4j_db),
-            13: lambda: option13(self.mongo_db)
+            13: lambda: option13(self.mongo_db, self.neo4j_db)
         }
 
     def exec_option(self, option_num: int) -> bool:
@@ -69,10 +69,10 @@ def option3(mongo_db: Database):
             })
     return True
 
-def option13(mongo_db: Database):
-    print("------------------------------------------------")
+def option13(mongo_db: Database, neo_driver: Driver):
+    print("-----------------------------------------")
     print("Agregar, modificar o borrar proveedores:")
-    print("------------------------------------------------")
+    print("-----------------------------------------")
     keep_iterating = True
     while keep_iterating:
         print("0 - Regresar")
@@ -88,21 +88,21 @@ def option13(mongo_db: Database):
             keep_iterating = False
 
         if option == 1:
-            option13_1(mongo_db)
+            option13_1(mongo_db, neo_driver)
         if option == 2:
             option13_2(mongo_db)
         if option == 3:
-            option13_3(mongo_db)
+            option13_3(mongo_db, neo_driver)
     return True
 
-def option13_1(mongo_db: Database):
+def option13_1(mongo_db: Database, neo_driver: Driver):
     print("Ingrese los datos del proveedor a agregar.")
     providers_collection = mongo_db["providers"]
 
     repetead_key = True
     while repetead_key:
         cuit = input("Ingrese el CUIT no existente de proveedor a insertar: ")
-        repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0          
+        repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0
     
     society_name = input("Ingrese la razón social (nombre de sociedad): ")
     society_type = input("Ingrese un tipo de sociedad: ")
@@ -113,14 +113,18 @@ def option13_1(mongo_db: Database):
     phones = []
     more_phones = True
     while more_phones:
-        result = parse_phone(input("Para ingresar un número escríbalo en formato '<código de área>;<número>;<tipo de teléfono (F/M)>', cualquier otro formato o dejarlo vacío asumirá que no hay más inserciones: "))
+        result = parse_phone(input(
+            "Para ingresar un número escríbalo en formato '<código de área>;<número>;<tipo de teléfono (F/M)>',\n"
+            "cualquier otro formato o dejarlo vacío asumirá que no hay más inserciones: "
+        ))
         if result[0]:
             phones.append(result[1])
         else:
             more_phones = False
 
+    id = get_next_sequence(mongo_db, "providers")
     provider_doc = {
-        "id": get_next_sequence(mongo_db, "providers"),
+        "id": id,
         "CUIT": cuit, # type: ignore
         "society_name": society_name, 
         "society_type": society_type,
@@ -131,6 +135,13 @@ def option13_1(mongo_db: Database):
     }
 
     providers_collection.insert_one(provider_doc)
+    
+    with neo_driver.session() as session:
+        session.execute_write(
+            lambda tx:
+            tx.run("CREATE (:Provider {id: $id})", id=id),
+        )
+
 
 def option13_2(mongo_db: Database):
     print("Para dejar un dato igual, dejar el campo en blanco.")
@@ -203,17 +214,26 @@ def option13_2(mongo_db: Database):
     else:
         print("No se ingresaron datos para modificar.")    
             
-def option13_3(mongo_db: Database):
+def option13_3(mongo_db: Database, neo_driver: Driver):
     print("Para no borrar, dejar el campo en blanco.")
     providers_collection = mongo_db["providers"]
     original_cuit = input("Ingrese CUIT de proveedor a modificar: ")
     if providers_collection.count_documents({"CUIT": original_cuit}) == 0:
         return
     
+    provider = mongo_db["providers"].find_one({"CUIT": original_cuit})
     mongo_db["providers"].delete_one({"CUIT": original_cuit})
+
+    with neo_driver.session() as session:
+        session.execute_write(
+            lambda tx: tx.run("""
+                MATCH (p:Provider {id: $provider_id})-[:Ordered]->(o:Order)
+                DETACH DELETE o
+                DETACH DELETE p
+            """, provider_id=provider['id']), # type: ignore
+        )
     
     print("Proveedor eliminado correctamente.")
-    
     
 
 def parse_phone(raw_str: str) -> Tuple[bool, Dict]:
