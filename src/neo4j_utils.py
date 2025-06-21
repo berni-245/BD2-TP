@@ -37,7 +37,7 @@ def new_order(tx, provider_id, order_id, expected_delivery_date, order_details, 
             expected_delivery_date: date($expected_delivery_date),
             total_cost: $total_cost
         })
-        MERGE (p)-[:Ordered]->(o)
+        MERGE (o)-[:OrderedFrom]->(p)
         """,
         provider_id=provider_id,
         order_id=order_id,
