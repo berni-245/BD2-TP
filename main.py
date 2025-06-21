@@ -20,6 +20,7 @@ options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], neo_driver)
 
 keep_iterating = True
 while keep_iterating:
+    print()
     print("0 - Abandonar aplicación")
     print("1 - Obtener los datos de los proveedores activos y habilitados junto con sus teléfonos.")
     print("2 - Obtener los teléfonos y el código de los proveedores que contengan la palabra 'Tecnología' en su razón social.")
@@ -36,5 +37,7 @@ while keep_iterating:
     print("13 - Crear nuevos proveedores, eliminar y modificar los ya existentes.")
     print("14 - Crear nuevos productos y modificar los ya existentes.")
     print("15 - Registrar nuevas órdenes de pedido a los proveedores si corresponde.")
+    print()
     option_num = int(input("Ingresar opción (0 - 15): "))
+    print()
     keep_iterating = options.exec_option(option_num)
