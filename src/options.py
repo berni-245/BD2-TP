@@ -96,13 +96,12 @@ def option13_1(mongo_db: Database):
     print("Ingresa los datos del proveedor a agregar.")
     providers_collection = mongo_db["providers"]
 
-    cuit = input("Ingresa CUIT: ")
-
     repetead_key = True
     while repetead_key:
-        society_name = input("Ingresa razón social (nombre de sociedad) no existente: ")
-        repetead_key = providers_collection.count_documents({"society_name": society_name}) > 0          
+        cuit = input("Ingresa el CUIT no existente de proveedor a insertar: ")
+        repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0          
     
+    society_name = input("Ingresa la razón social (nombre de sociedad): ")
     society_type = input("Ingresa un tipo de sociedad: ")
     address = input("Ingresa la dirección: ")
     active = input("Ingresa si está activo (y = true / otra respuesta = false): ") == "y"
@@ -119,8 +118,8 @@ def option13_1(mongo_db: Database):
 
     provider_doc = {
         "id": get_next_sequence(mongo_db, "providers"),
-        "CUIT": cuit,
-        "society_name": society_name, # type: ignore
+        "CUIT": cuit, # type: ignore
+        "society_name": society_name, 
         "society_type": society_type,
         "address": address,
         "active": active,
@@ -133,25 +132,26 @@ def option13_1(mongo_db: Database):
 def option13_2(mongo_db: Database):
     print("Para dejar un dato igual, dejar el campo en blanco.")
     providers_collection = mongo_db["providers"]
-    original_society_name = input("Ingresa razón social (nombre de sociedad) a modificar: ")
-    if providers_collection.count_documents({"society_name": original_society_name}) == 0:
+    original_cuit = input("Ingresa CUIT de proveedor a modificar: ")
+    if providers_collection.count_documents({"CUIT": original_cuit}) == 0:
         return
     
     new_doc = {}
-    
-    cuit = input("Ingresa CUIT: ")
-    if not cuit == "":
-        new_doc["CUIT"] = cuit
 
     repetead_key = True
     while repetead_key:
-        society_name = input("Ingresa razón social (nombre de sociedad) no existente: ")
-        if society_name == "":
+        cuit = input("Cambia a un CUIT no existente: ")
+        if cuit == "":
             break
-        repetead_key = providers_collection.count_documents({"society_name": society_name}) > 0
+        repetead_key = providers_collection.count_documents({"CUIT": cuit}) > 0
+
+    if not cuit == "": # type: ignore
+        new_doc["CUIT"] = cuit # type: ignore
     
-    if not society_name == "": # type: ignore
-        new_doc["society_name"] = society_name # type: ignore
+    society_name = input("Ingresa razón social (nombre de sociedad): ")
+    
+    if not society_name == "": 
+        new_doc["society_name"] = society_name 
     
     society_type = input("Ingresa un tipo de sociedad: ")
     if not society_type == "":
@@ -165,7 +165,7 @@ def option13_2(mongo_db: Database):
     if not active == "":
         new_doc["active"] = active == "y"
 
-    enabled = input("Ingresa si está habilitado (y = true / otra respuesta no vacía = false): ") == "y"
+    enabled = input("Ingresa si está habilitado (y = true / otra respuesta no vacía = false): ")
     if not enabled == "":
         new_doc["enabled"] = enabled == "y"
 
@@ -183,7 +183,7 @@ def option13_2(mongo_db: Database):
             new_doc["phones"] = phones
         if phone_option == "1":
             providers_collection.update_one(
-                {"society_name": original_society_name},
+                {"CUIT": original_cuit},
                 {"$push": {
                     "phones": {
                         "$each": phones
@@ -193,7 +193,7 @@ def option13_2(mongo_db: Database):
     
     if new_doc:
         providers_collection.update_one(
-            {"society_name": original_society_name},
+            {"CUIT": original_cuit},
             {"$set": new_doc}
         )
         print("Proveedor actualizado correctamente.")
@@ -203,11 +203,11 @@ def option13_2(mongo_db: Database):
 def option13_3(mongo_db: Database):
     print("Para no borrar, dejar el campo en blanco.")
     providers_collection = mongo_db["providers"]
-    original_society_name = input("Ingresa razón social (nombre de sociedad) a modificar: ")
-    if providers_collection.count_documents({"society_name": original_society_name}) == 0:
+    original_cuit = input("Ingresa CUIT de proveedor a modificar: ")
+    if providers_collection.count_documents({"CUIT": original_cuit}) == 0:
         return
     
-    mongo_db["providers"].delete_one({"society_name": original_society_name})
+    mongo_db["providers"].delete_one({"CUIT": original_cuit})
     
     print("Proveedor eliminado correctamente.")
     

@@ -40,9 +40,9 @@ def initialize_mongo_db(mongo_db: Database):
             providers_collection.insert_one(provider_doc)
 
             providers_collection.create_index(
-                [("society_name", 1)],  
+                [("CUIT", 1)],
                 unique=True,
-                name="unique_society_name"
+                name="unique_CUIT"
             )
 
     if not collection_exists(mongo_db, "products"):

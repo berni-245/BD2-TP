@@ -9,14 +9,14 @@ load_dotenv()
 
 mongo_client = MongoClient(os.getenv("MONGO_CLIENT_URL"))
 neo_driver = GraphDatabase.driver(
-    os.getenv("NEO4J_URL"),
-    auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASS"))
+    os.getenv("NEO4J_URL"), # type: ignore
+    auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASS")) # type: ignore
 )
 
 print("Bienvenido al Backoffice de proveedores de productos en distintas órdenes")
 print("Elija una de las siguientes opciones:")
 
-options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], 1)
+options = Options(mongo_client[os.getenv("MONGO_DB_NAME")], 1) # type: ignore
 
 keep_iterating = True
 while keep_iterating:
