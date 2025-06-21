@@ -5,7 +5,7 @@ from pymongo.database import Database, Collection
 from neo4j import Driver
 from pprint import pprint
 from src.neo4j_utils import new_order
-from src.mongo_utils import get_next_sequence
+from src.mongo_utils import get_next_sequence, parse_phone
 from src.utils import validate_future_date
 
 class Options():
@@ -331,6 +331,7 @@ def option14_2(mongo_db: Database):
     original_description = input("Ingrese la descripción del producto: ")
     original_brand = input("Ingrese la marca del producto: ")
     if products_collection.count_documents({"description": original_description, "brand": original_brand}) == 0:
+        print("No se encontró el producto con esa descripción y marca.")
         return
     
     new_doc = {}
@@ -340,19 +341,16 @@ def option14_2(mongo_db: Database):
         print("Ingrese una descripción y marca de producto no existentes.")
         description = input("Ingrese la descripción del producto: ")
         brand = input("Ingrese la marca del producto: ")
-        if description == "" and brand == "":
-            break
         if description == "":
-            new_doc["description"] = original_description
+            description = original_description
 
         if brand == "":
-            new_doc["brand"] = original_brand
+            brand = original_brand
+
         repetead_key = products_collection.count_documents({"description": description, "brand": brand}) > 0
     
-    if not description == "": # type: ignore
-        new_doc["description"] = description # type: ignore
-    if not brand == "": # type: ignore
-        new_doc["brand"] = brand # type: ignore
+    new_doc["description"] = description # type: ignore
+    new_doc["brand"] = brand # type: ignore
 
     category = input("Ingrese la categoría del producto: ")
 
@@ -383,17 +381,6 @@ def option14_2(mongo_db: Database):
         print("Producto actualizado correctamente.")
     else:
         print("No se ingresaron datos para modificar.")    
-
-def parse_phone(raw_str: str) -> Tuple[bool, Dict]:
-    split_args = raw_str.split(";")
-    if not len(split_args) == 3:
-        return (False, {})
-    phone = {
-        "area_code": split_args[0],
-        "phone_number": split_args[1],
-        "phone_type": split_args[2]
-    }
-    return (True, phone)
 
 
 def option4(mongo_db: Database, neo_driver: Driver):
