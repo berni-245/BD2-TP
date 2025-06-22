@@ -118,8 +118,8 @@ def print_order_details(orders_by_provider):
             print()
 def print_products(products):
     for product in products:
-        print("-----------------------------------")
         print_single_product(product)
+        print("-----------------------------------")
 
 def print_single_product(product):
     print(f"Descripción: {product['description']} - Marca: {product['brand']} - Categoría: {product['category']}")
@@ -127,8 +127,8 @@ def print_single_product(product):
 
 def print_providers(providers, show_phones: bool = False):
     for provider in providers:
-        print("-----------------------------------")
         print_single_provider(provider, show_phones)
+        print("-----------------------------------")
 
 def print_single_provider(provider, show_phones: bool = False):
     print(f"Razón social: {provider['society_name']} - Tipo de sociedad: {provider['society_type']}")

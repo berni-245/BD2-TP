@@ -63,10 +63,12 @@ def option3(mongo_db: Database):
     providers = mongo_db["providers"].find()
     for provider in providers:
         for phone in provider.get("phones", []):
-            print("---------------------")
+            print("Teléfono:")
             print_phone(phone)
-            print("of provider:")
+            print("de proveedor:")
             print_single_provider(provider)
+            print("-----------------------------------")
+
     return True
 
 def option4(mongo_db: Database, neo_driver: Driver):
@@ -324,6 +326,7 @@ def option12(mongo_db: Database, neo_driver: Driver):
                 }
             ]
         )
+    return True
 
     providers = mongo_db[view_name].find()
     print_providers(providers)
