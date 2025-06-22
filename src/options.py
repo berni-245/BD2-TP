@@ -23,6 +23,7 @@ class Options():
              8: lambda: option8(self.mongo_db, self.neo4j_db),
             10: lambda: option10(self.mongo_db, self.neo4j_db),
             11: lambda: option11(self.mongo_db, self.neo4j_db),
+            12: lambda: option12(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db, self.neo4j_db),
             14: lambda: option14(self.mongo_db, self.neo4j_db),
             15: lambda: option15(self.mongo_db, self.neo4j_db),
@@ -325,6 +326,32 @@ def option11(mongo_db: Database, neo_driver: Driver):
     print_products(mongo_products)
     return True
 
+def option12(mongo_db: Database, neo_driver: Driver):
+    view_name = "inactive_enabled_providers"
+
+    if not view_name in mongo_db.list_collection_names():
+        mongo_db.create_collection(
+            view_name,
+            viewOn="providers",
+            pipeline=[
+                {
+                    "$match": {
+                        "active": True,
+                        "enabled": False
+                    }
+                }
+            ]
+        )
+
+    for doc in mongo_db[view_name].find():
+        print("------------------------")
+        print(f"ID: {doc['id']}")
+        print(f"Razón social: {doc['society_name']}")
+        print(f"CUIT: {doc['CUIT']}")
+        print(f"Dirección: {doc['address']}")
+        print(f"Activo: {doc['active']}, Habilitado: {doc['enabled']}")
+
+    
 def print_products(products):
     for product in products:
         print("-----------------------------------")
