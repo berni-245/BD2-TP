@@ -327,10 +327,9 @@ def option12(mongo_db: Database, neo_driver: Driver):
                 }
             ]
         )
-    return True
-
     providers = mongo_db[view_name].find()
     print_providers(providers)
+    return True
 
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")
