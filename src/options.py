@@ -17,6 +17,7 @@ class Options():
              4: lambda: option4(self.mongo_db, self.neo4j_db),
              5: lambda: option5(self.mongo_db, self.neo4j_db),
              6: lambda: option6(self.mongo_db, self.neo4j_db),
+            10: lambda: option10(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db, self.neo4j_db),
             14: lambda: option14(self.mongo_db, self.neo4j_db),
             15: lambda: option15(self.mongo_db, self.neo4j_db),
@@ -190,6 +191,43 @@ def option7(mongo_db: Database, neo_driver: Driver):
         enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
         print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
     return True
+
+def option10(mongo_db: Database, neo_driver: Driver):
+    with neo_driver.session() as session:
+        results = session.execute_read(
+            lambda tx: list(tx.run("""
+                MATCH (p:Provider)<-[:OrderedFrom]-(o:Order)
+                OPTIONAL MATCH (o)-[i:HasItem]->(:Product)
+                ORDER BY o.expected_delivery_date
+                RETURN o.id AS order_id,
+                       p.id AS provider_id,
+                       o.expected_delivery_date AS delivery_date,
+                       coalesce(sum(i.price), 0) AS total_cost,
+                       coalesce(sum(i.price * (1 + o.iva / 100.0)), 0) AS total_cost_iva
+            """))
+        )
+
+    for record in results:
+        order_id = record["order_id"]
+        provider_doc = mongo_db["providers"].find_one({"id": record["provider_id"]})
+        if provider_doc:
+            provider_society_name = provider_doc["society_name"]
+        else:
+            continue
+
+        delivery_date = record["delivery_date"]
+        total_cost = record["total_cost"]
+        total_cost_iva = record["total_cost_iva"]
+
+        print("-----------------------------------")
+        print(f"Orden ID: {order_id}")
+        print(f"Proveedor Razón social: {provider_society_name}")
+        print(f"Fecha de entrega: {delivery_date}")
+        print(f"Total sin IVA: ${total_cost:.2f}")
+        print(f"Total con IVA: ${total_cost_iva:.2f}")
+
+    return True
+
 
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")
