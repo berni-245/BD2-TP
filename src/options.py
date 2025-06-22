@@ -128,7 +128,8 @@ def option6(mongo_db: Database, neo_driver: Driver):
             lambda tx: [
                 record
                 for record in tx.run("""
-                MATCH (p:Provider)<-[:OrderedFrom]-(o:Order)
+                MATCH (p:Provider)
+                OPTIONAL MATCH (p)<-[:OrderedFrom]-(o:Order)
                 OPTIONAL MATCH (o)-[i:HasItem]->(:Product)
                 RETURN p.id AS provider_id,
                     count(DISTINCT o) AS order_count,
