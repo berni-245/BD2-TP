@@ -20,7 +20,9 @@ class Options():
              5: lambda: option5(self.mongo_db, self.neo4j_db),
              6: lambda: option6(self.mongo_db, self.neo4j_db),
              7: lambda: option7(self.mongo_db, self.neo4j_db),
+             8: lambda: option8(self.mongo_db, self.neo4j_db),
             10: lambda: option10(self.mongo_db, self.neo4j_db),
+            11: lambda: option11(self.mongo_db, self.neo4j_db),
             13: lambda: option13(self.mongo_db, self.neo4j_db),
             14: lambda: option14(self.mongo_db, self.neo4j_db),
             15: lambda: option15(self.mongo_db, self.neo4j_db),
@@ -253,6 +255,23 @@ def option7(mongo_db: Database, neo_driver: Driver):
 
     return True
 
+def option8(mongo_db: Database, neo_driver: Driver):
+    with neo_driver.session() as session:
+        products_ids = session.execute_read(
+            lambda tx: [record["p"]["id"]
+                for record in
+                    tx.run("""
+                    MATCH (p:Product)
+                    WHERE (p) <-[:HasItem]- ()
+                    return p;
+                    """)
+            ]
+        )
+
+    mongo_products = mongo_db["products"].find({ "id": { "$in": products_ids } })
+    print_products(mongo_products)
+    return True
+
 def option10(mongo_db: Database, neo_driver: Driver):
     with neo_driver.session() as session:
         results = session.execute_read(
@@ -289,6 +308,28 @@ def option10(mongo_db: Database, neo_driver: Driver):
 
     return True
 
+def option11(mongo_db: Database, neo_driver: Driver):
+    with neo_driver.session() as session:
+        products_ids = session.execute_read(
+            lambda tx: [record["p"]["id"]
+                for record in
+                    tx.run("""
+                    MATCH (p:Product)
+                    WHERE NOT (p) <-[:HasItem]- ()
+                    return p;
+                    """)
+            ]
+        )
+
+    mongo_products = mongo_db["products"].find({ "id": { "$in": products_ids } })
+    print_products(mongo_products)
+    return True
+
+def print_products(products):
+    for product in products:
+        print("-----------------------------------")
+        print(f"Descripción: {product['description']} - Marca: {product['brand']} - Categoría: {product['category']}")
+        print(f"Precio: {product['price']} - stock actual: {product['current_stock']} - stock futuro: {product['future_stock']}")
 
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")
