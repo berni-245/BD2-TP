@@ -1,4 +1,5 @@
 from collections import defaultdict
+from pymongo import UpdateOne
 from pymongo.database import Database
 from neo4j import Driver
 from pprint import pprint
@@ -675,5 +676,15 @@ def option15(mongo_db: Database, neo_driver: Driver):
             iva,
             order_details
         )
+
+    operations = [
+        UpdateOne(
+            {"id": detail['id']},
+            {"$inc": {"future_stock": detail['quantity']}}
+        )
+        for detail in order_details
+    ]
+
+    products_collection.bulk_write(operations)
 
     return True
