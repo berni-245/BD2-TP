@@ -2,10 +2,9 @@ from collections import defaultdict
 from pymongo import UpdateOne
 from pymongo.database import Database
 from neo4j import Driver
-from pprint import pprint
 from src.neo4j_utils import new_order
 from src.mongo_utils import get_next_sequence
-from src.utils import parse_option_details, print_order_details, validate_future_date, parse_phone
+from src.utils import parse_option_details, print_order_details, validate_future_date, parse_phone, print_products, print_single_product, print_providers, print_single_provider, print_phone
 
 class Options():
     def __init__(self, mongo_db: Database, neo4j_db: Driver) -> None:
@@ -44,12 +43,7 @@ def option1(mongo_db: Database):
         "active": True,
         "enabled": True
     })
-    for provider in providers:
-        pprint({
-            "id": provider["id"],
-            "society_name": provider["society_name"],
-            "phones": provider.get("phones", [])
-        })
+    print_providers(providers, True)
     return True
 
 def option2(mongo_db: Database):
@@ -59,12 +53,7 @@ def option2(mongo_db: Database):
     providers = mongo_db["providers"].find({
         "society_name": {"$regex": "Tecnología", "$options": "i"}
     })
-    for provider in providers:
-        pprint({
-            "id": provider["id"],
-            "society_name": provider["society_name"],
-            "phones": provider.get("phones", [])
-        })
+    print_providers(providers, True)
     return True
 
 def option3(mongo_db: Database):
@@ -74,11 +63,10 @@ def option3(mongo_db: Database):
     providers = mongo_db["providers"].find()
     for provider in providers:
         for phone in provider.get("phones", []):
-            pprint({
-                "provider_id": provider["id"],
-                "society_name": provider["society_name"],
-                "phone": phone
-            })
+            print("---------------------")
+            print_phone(phone)
+            print("of provider:")
+            print_single_provider(provider)
     return True
 
 def option4(mongo_db: Database, neo_driver: Driver):
@@ -98,8 +86,7 @@ def option4(mongo_db: Database, neo_driver: Driver):
 
     mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
 
-    for provider in mongo_providers:
-        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}")
+    print_providers(mongo_providers)
 
     return True
 
@@ -124,10 +111,7 @@ def option5(mongo_db: Database, neo_driver: Driver):
 
     mongo_providers = mongo_db["providers"].find({ "id": { "$in": provider_ids } })
 
-    for provider in mongo_providers:
-        active = "Activo" if provider["active"] else "Inactivo"
-        enabled = "Habilitado" if provider["enabled"] else "Deshabilitado"
-        print(f"CUIT: {provider['CUIT']} - {provider['society_name']}: {active} - {enabled}")
+    print_providers(mongo_providers)
     return True
 
 def option6(mongo_db: Database, neo_driver: Driver):
@@ -239,6 +223,10 @@ def option9(mongo_db: Database, neo_driver: Driver):
     return True
 
 def option8(mongo_db: Database, neo_driver: Driver):
+    print("-----------------------------------------------------------")
+    print("Mostrar los productos que han sido pedido al menos una vez:")
+    print("-----------------------------------------------------------")
+
     with neo_driver.session() as session:
         products_ids = session.execute_read(
             lambda tx: [record["p"]["id"]
@@ -256,6 +244,10 @@ def option8(mongo_db: Database, neo_driver: Driver):
     return True
 
 def option10(mongo_db: Database, neo_driver: Driver):
+    print("------------------------------------------------------------------------------")
+    print("Mostrar los datos de las órdenes de pedido y su proveedor ordenadas por fecha:")
+    print("------------------------------------------------------------------------------")
+
     with neo_driver.session() as session:
         results = session.execute_read(
             lambda tx: list(tx.run("""
@@ -292,6 +284,10 @@ def option10(mongo_db: Database, neo_driver: Driver):
     return True
 
 def option11(mongo_db: Database, neo_driver: Driver):
+    print("--------------------------------------------------------")
+    print("Mostrar todos los productos que aún NO han sido pedidos:")
+    print("--------------------------------------------------------")
+
     with neo_driver.session() as session:
         products_ids = session.execute_read(
             lambda tx: [record["p"]["id"]
@@ -309,6 +305,10 @@ def option11(mongo_db: Database, neo_driver: Driver):
     return True
 
 def option12(mongo_db: Database, neo_driver: Driver):
+    print("------------------------------------------------------------------------------------------")
+    print("Crear una vista que devuelva los datos de los proveedores activos que están inhabilitados:")
+    print("------------------------------------------------------------------------------------------")
+
     view_name = "inactive_enabled_providers"
 
     if not view_name in mongo_db.list_collection_names():
@@ -325,20 +325,8 @@ def option12(mongo_db: Database, neo_driver: Driver):
             ]
         )
 
-    for doc in mongo_db[view_name].find():
-        print("------------------------")
-        print(f"ID: {doc['id']}")
-        print(f"Razón social: {doc['society_name']}")
-        print(f"CUIT: {doc['CUIT']}")
-        print(f"Dirección: {doc['address']}")
-        print(f"Activo: {doc['active']}, Habilitado: {doc['enabled']}")
-
-    
-def print_products(products):
-    for product in products:
-        print("-----------------------------------")
-        print(f"Descripción: {product['description']} - Marca: {product['brand']} - Categoría: {product['category']}")
-        print(f"Precio: {product['price']} - stock actual: {product['current_stock']} - stock futuro: {product['future_stock']}")
+    providers = mongo_db[view_name].find()
+    print_providers(providers)
 
 def option13(mongo_db: Database, neo_driver: Driver):
     print("-----------------------------------------")

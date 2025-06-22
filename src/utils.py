@@ -116,3 +116,28 @@ def print_order_details(orders_by_provider):
                 )
 
             print()
+def print_products(products):
+    for product in products:
+        print("-----------------------------------")
+        print_single_product(product)
+
+def print_single_product(product):
+    print(f"Descripción: {product['description']} - Marca: {product['brand']} - Categoría: {product['category']}")
+    print(f"Precio: {product['price']} - stock actual: {product['current_stock']} - stock futuro: {product['future_stock']}")
+
+def print_providers(providers, show_phones: bool = False):
+    for provider in providers:
+        print("-----------------------------------")
+        print_single_provider(provider, show_phones)
+
+def print_single_provider(provider, show_phones: bool = False):
+    print(f"Razón social: {provider['society_name']} - Tipo de sociedad: {provider['society_type']}")
+    print(f"CUIT: {provider['CUIT']} - Dirección: {provider['address']}")
+    print(f"Activo: {provider['active']} - Habilitado: {provider['enabled']}")
+    if show_phones and provider['phones']:
+        print("Teléfonos:")
+        for phone in provider['phones']:
+            print_phone(phone)
+
+def print_phone(phone):
+    print(f"Código de área: {phone['area_code']} - Número: {phone['phone_number']} - tipo: {phone['phone_type']}")
