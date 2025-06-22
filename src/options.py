@@ -5,7 +5,7 @@ from neo4j import Driver
 from pprint import pprint
 from src.neo4j_utils import new_order
 from src.mongo_utils import get_next_sequence
-from src.utils import validate_future_date, parse_phone
+from src.utils import parse_option_details, print_order_details, validate_future_date, parse_phone
 
 class Options():
     def __init__(self, mongo_db: Database, neo4j_db: Driver) -> None:
@@ -21,6 +21,7 @@ class Options():
              6: lambda: option6(self.mongo_db, self.neo4j_db),
              7: lambda: option7(self.mongo_db, self.neo4j_db),
              8: lambda: option8(self.mongo_db, self.neo4j_db),
+             9: lambda: option9(self.mongo_db, self.neo4j_db),
             10: lambda: option10(self.mongo_db, self.neo4j_db),
             11: lambda: option11(self.mongo_db, self.neo4j_db),
             12: lambda: option12(self.mongo_db, self.neo4j_db),
@@ -174,8 +175,7 @@ def option7(mongo_db: Database, neo_driver: Driver):
     print("Listar todas las órdenes que hayan sido pedidas al proveedor 30660608175:")
     print("-------------------------------------------------------------------------")
 
-    products_collection = mongo_db["products"]
-    provider = mongo_db["providers"].find_one({ "CUIT": "30660608175" })
+    provider = mongo_db["providers"].find_one({ "CUIT": "30660608175" }, {"_id": 0, "id": 1})
     # provider = mongo_db["providers"].find_one({ "CUIT": "9999" })
 
     if not provider:
@@ -188,71 +188,53 @@ def option7(mongo_db: Database, neo_driver: Driver):
             [
                 record for record in
                     tx.run("""
-                    MATCH (:Provider {id: $provider_id})<-[:OrderedFrom]-(o:Order)-[i:HasItem]->(p:Product)
+                    MATCH (pv:Provider {id: $provider_id})<-[:OrderedFrom]-(o:Order)-[i:HasItem]->(p:Product)
                     RETURN o.id as order_id, o.iva as iva,
                         o.expected_delivery_date as date,
-                        p.id as product_id, i.quantity as quantity, i.price as price
+                        p.id as product_id, i.quantity as quantity,
+                        i.price as price, pv.id as provider_id
                     """, provider_id=provider["id"])
             ]
         )
 
-    orders_by_id = defaultdict(lambda: {
-        "order_id": None,
-        "iva": None,
-        "date": None,
-        "products": [],
-        "total_cost": 0.0,
-        "total_cost_iva": 0.0
-    })
+    orders_by_provider = parse_option_details(mongo_db, order_details)
+    print_order_details(orders_by_provider)
 
-    for record in order_details:
-        id = record["order_id"]
-        iva = record["iva"]
-        quantity = record["quantity"]
-        price = record["price"]
-        subtotal = quantity * price
-        total_with_iva = subtotal * (1 + iva / 100.0)
+    return True
 
-        order = orders_by_id[id]
-        order["order_id"] = id
-        order["iva"] = iva
-        order["date"] = record["date"]
+def option9(mongo_db: Database, neo_driver: Driver):
+    print("------------------------------------------------------")
+    print("Listar todas las órdenes que tengan productos de COTO:")
+    print("------------------------------------------------------")
 
-        product = products_collection.find_one(
-            {"id": record["product_id"]},
-            {"_id": 0, "description": 1, "brand": 1}
-        )
-        order["products"].append({ # type: ignore
-            **product, # type: ignore
-            "quantity": quantity,
-            "price": price
-        })
-        order["total_cost"] += subtotal
-        order["total_cost_iva"] += total_with_iva
+    coto_product_ids = [
+        product["id"] for product in mongo_db["products"].find({'brand': 'COTO'}, {"id": 1})
+    ]
 
-    for i, order_id in enumerate(orders_by_id):
-        order = orders_by_id[order_id]
-        iva = order['iva']
-
-        print(
-            f"Orden {i + 1} - Total: "
-            f"${order['total_cost']:.2f} sin iva | "
-            f"${order['total_cost_iva']:.2f} con iva ({iva}%)"
+    with neo_driver.session() as session:
+        order_details = session.execute_read(
+            lambda tx: [
+                record for record in
+                tx.run(
+                    """
+                    MATCH (pv:Provider)<-[:OrderedFrom]-(o:Order)-[i:HasItem]->(pd:Product)
+                    WHERE EXISTS {
+                        MATCH (o)-[:HasItem]->(cp:Product)
+                        WHERE cp.id IN [14,74,65]
+                    }
+                    RETURN o.id as order_id, o.iva as iva,
+                        o.expected_delivery_date as date,
+                        pd.id as product_id, i.quantity as quantity,
+                        i.price as price, pv.id as provider_id
+                    ORDER BY order_id
+                    """,
+                    coto_ids=coto_product_ids
+                )
+            ]
         )
 
-        for product in order['products']:  # type: ignore
-            quantity = product['quantity']
-            description = product['description']
-            brand = product['brand']
-            price = product['price']
-            line_total = price * quantity
-            line_total_iva = price * quantity * (1 + iva/100) # type: ignore
-            print(
-                f"    • {quantity} x {description} de {brand} (${price}) "
-                f"-> ${line_total:.2f} sin iva | ${line_total_iva:.2f} con iva"
-            )
-
-        print()
+    orders_by_id = parse_option_details(mongo_db, order_details)
+    print_order_details(orders_by_id)
 
     return True
 
